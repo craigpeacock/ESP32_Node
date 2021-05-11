@@ -52,6 +52,26 @@
 #define ADXL345_FIFO_CTL			0x38
 #define ADXL345_FIFO_STATUS			0x39
 
+// Bit flags for INT_ENABLE, INT_MAP and INT_SOURCE
+#define DATA_READY				0x80
+#define SINGLE_TAP				0x40
+#define DOUBLE_TAP				0x20
+#define ACTIVITY				0x10
+#define INACTIVITY 				0x08
+#define FREE_FALL				0x04
+#define WATERMARK				0x02
+#define OVERRUN					0x01
+
+// Bit flags for ACT_INACT_CTL
+#define ACT_AC_COUPLED				0x80
+#define ACT_X_EN				0x40
+#define ACT_Y_EN				0x20
+#define ACT_Z_EN				0x10
+#define INACT_AC_COUPLED			0x08
+#define INACT_X_EN				0x04
+#define INACT_Y_EN				0x02
+#define INACT_Z_EN				0x01
+
 void adxl345_init(uint8_t i2c_master_port);
 int16_t adxl345_read_x(uint8_t i2c_master_port);
 int16_t adxl345_read_y(uint8_t i2c_master_port);
