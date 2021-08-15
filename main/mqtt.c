@@ -43,9 +43,28 @@
 
 static const char *TAG = "MQTT";
 
-#define CONFIG_BROKER_URL "mqtt://192.168.0.249"
+#define CONFIG_BROKER_URL "mqtts://xxxxxxats.iot.us-east-2.amazonaws.com"
+#define CONFIG_THINGS_NAME "ESP32Thing"
 #define CONFIG_BROKER_USERNAME "mqttuser"
 #define CONFIG_BROKER_PASSWORD "secret"
+
+// Following certificates are embedded at build time. See main/CMakeLists.txt line:
+// set(COMPONENT_EMBED_TXTFILES "AmazonRootCA1.pem" "certificate.pem.crt" "private.pem.key")
+
+// Root Certificate Authority (CA):
+// Copy certificate to main/AmazonRootCA1.pem
+extern const uint8_t aws_root_ca_pem_start[]   asm("_binary_AmazonRootCA1_pem_start");
+extern const uint8_t aws_root_ca_pem_end[]   asm("_binary_AmazonRootCA1_pem_end");
+
+// Device Certificate for SSL Mutual Authentication:
+// Copy certificate to main/certificate.pem.crt
+extern const uint8_t certificate_pem_crt_start[] asm("_binary_certificate_pem_crt_start");
+extern const uint8_t certificate_pem_crt_end[] asm("_binary_certificate_pem_crt_end");
+
+// RSA Private Key:
+// Copy key to main/private.pem.key
+extern const uint8_t private_pem_key_start[] asm("_binary_private_pem_key_start");
+extern const uint8_t private_pem_key_end[] asm("_binary_private_pem_key_end");
 
 unsigned int pub_cnt;
 
@@ -98,17 +117,40 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
 
 esp_mqtt_client_handle_t mqtt_init(void)
 {
+	int ret;
 	esp_mqtt_client_config_t mqtt_cfg = {
 	        .uri = CONFIG_BROKER_URL,
-			.username = CONFIG_BROKER_USERNAME,
-			.password = CONFIG_BROKER_PASSWORD,
+			.port = 8883,
+			.transport = MQTT_TRANSPORT_OVER_SSL,
+			//.username = CONFIG_BROKER_USERNAME,
+			//.password = CONFIG_BROKER_PASSWORD,
 			.keepalive = 600,
+			.client_id = CONFIG_THINGS_NAME,
+			.cert_pem = (const char *)aws_root_ca_pem_start,
+			.cert_len = (const char *)aws_root_ca_pem_end - (const char *)aws_root_ca_pem_start,
+			.client_cert_pem = (const char *)certificate_pem_crt_start,
+			.client_cert_len = (const char *)certificate_pem_crt_end - (const char *)certificate_pem_crt_start,
+			.client_key_pem = (const char *)private_pem_key_start,
+			.client_key_len = (const char *)private_pem_key_end - (const char *)private_pem_key_start,
 	};
+
+	printf("cert_len = %d\r\n", mqtt_cfg.cert_len);
 
 	esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 	esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-	esp_mqtt_client_start(client);
-	pub_cnt = 0;
+	ret = esp_mqtt_client_start(client);
+	switch (ret) {
+		case ESP_OK:
+			printf("MQTT Initialised Successfully\r\n");
+			break;
+		case ESP_ERR_INVALID_ARG:
+			printf("Invalid argument in mqtt_init()\r\n");
+			break;
+		case ESP_FAIL:
+		default:
+			printf("Unknown Error in mqtt_init()\r\n");
+			break;
+	}
 	return(client);
 }
 
